@@ -2,18 +2,21 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {StaticMap, MapContext, NavigationControl} from 'react-map-gl';
 import DeckGL, {GeoJsonLayer, ArcLayer} from 'deck.gl';
-import test from './data/경북GeoJSON.geojson'
+import geoJson from './data/경북GeoJSON.geojson'
+// import topoJSon from './data/gbmap_topo.json'
 import testData from './data/도내 시군간 및 시도간 전출입 및 순이동자.json'
+import { ScatterplotLayer } from 'deck.gl';
+import { CPUGridLayer } from 'deck.gl';
 
 // source: Natural Earth http://www.naturalearthdata.com/ via geojson.xyz
 const AIR_PORTS =
   'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson';
-const ttt = test;
+const country = geoJson;
 
 const INITIAL_VIEW_STATE = {
-  latitude: 51.47,
-  longitude: 0.45,
-  zoom: 4,
+  latitude: 37.3236563, 
+  longitude: 127.9745613,
+  zoom: 7,
   bearing: 0,
   pitch: 30
 };
@@ -21,22 +24,49 @@ const INITIAL_VIEW_STATE = {
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json';
 const NAV_CONTROL_STYLE = {
   position: 'absolute',
-  top: 10,
-  left: 10
+  top: 5,
+  left: 5
 };
+
+const ArcData = 
+[
+  {
+    inbound: 72633,
+    outbound: 74735,
+    from: {
+      name: '19th St. Oakland (19TH)',
+      coordinates: [129.269029, 36.80787]
+    },
+    to: {
+      name: '12th St. Oakland City Center (12TH)',
+      coordinates: [127.271604, 37.803664]
+  },
+}
+];
+
+const ScatterplotData = 
+[
+  {name: 'Colma (COLM)', code:'CM', address: '365 D Street, Colma CA 94014', exits: 4214, coordinates: [127.271604, 35.803664], radiusScale: 300},
+  {name: 'Colma (COLM)', code:'CM', address: '365 D Street, Colma CA 94014', exits: 4214, coordinates: [125.271604, 35.803664], radiusScale: 100},
+]
+
+const CPUGridData = [
+  {COORDINATES: [128.271604, 36.803664]}
+]
+
 
 function Root() {
   const onClick = info => {
     if (info.object) {
       // eslint-disable-next-line
-      alert(`${info.object.properties.name} (${info.object.properties.abbrev})`);
+      alert(info.object.properties.SGG_NM);
     }
   };
 
   const layers = [
     new GeoJsonLayer({
       id: 'airports',
-      data: AIR_PORTS,
+      data: country,
       // Styles
       filled: true,
       pointRadiusMinPixels: 2,
@@ -48,28 +78,45 @@ function Root() {
       autoHighlight: true,
       onClick
     }),
+
     new ArcLayer({
-      id: 'arcs',
-      data: AIR_PORTS,
-      dataTransform: d => d.features.filter(f => f.properties.scalerank < 4),
-      // Styles
-      getSourcePosition: f => [-0.4531566, 51.4709959], // London
-      getTargetPosition: f => f.geometry.coordinates,
-      getSourceColor: [0, 128, 200],
-      getTargetColor: [200, 0, 80],
-      getWidth: 1
+      id: 'arc-layer',
+      data: ArcData,
+      pickable: true,
+      getWidth: 12,
+      getSourcePosition: d => d.from.coordinates,
+      getTargetPosition: d => d.to.coordinates,
+      getSourceColor: d => [Math.sqrt(d.inbound), 140, 0],
+      getTargetColor: d => [Math.sqrt(d.outbound), 140, 0],
     }),
-    // new ArcLayer({
-    //   id: 'arcs',
-    //   data: test,
-    //   dataTransform: d => d.list.filter(f => f.SM < 1000),
-    //   // Styles
-    //   getSourcePosition: f => [36.0190178, 129.3434808], // London
-    //   getTargetPosition: f => f.geometry.coordinates,
-    //   getSourceColor: [0, 128, 200],
-    //   getTargetColor: [200, 0, 80],
-    //   getWidth: 1
-    // })
+
+    new ScatterplotLayer({
+      id: 'scatterplot-layer',
+      data: ScatterplotData,
+      pickable: true,
+      opacity: 0.8,
+      stroked: true,
+      filled: true,
+      radiusScale: 300,
+      radiusMinPixels: 1,
+      radiusMaxPixels: 100,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => Math.sqrt(d.exits),
+      getFillColor: d => [255, 140, 0],
+      getLineColor: d => [0, 0, 0]
+    }),
+
+    new CPUGridLayer({
+      id: 'grid-layer',
+      data: CPUGridData,
+      pickable: true,
+      extruded: true,
+      cellSize: 20000,
+      elevationScale: 2000,
+      count: 10,
+      getPosition: d => d.COORDINATES
+    })
   ];
 
   return (
